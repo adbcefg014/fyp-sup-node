@@ -76,7 +76,7 @@ void loop() {
   }
 
   free(bufferStr1);
-  delay(5s);
+  delay(1s);
 }
 
 
