@@ -1,6 +1,7 @@
 TCPClient serverClient;
-byte server[] = { 192, 168, 100, 100 };
-int port = 8888;
+// byte server[] = { 192, 168, 100, 100 };
+String hostname = "6643-2401-7400-c80b-4318-591-35ec-f4e4-9f75.ap.ngrok.io";
+int port = 80;
 
 const char* serviceUuid = "58F75BE1-6DF6-4273-9627-CA053E89771B";
 const char* sensorMode  = "58F75BE2-6DF6-4273-9627-CA053E89771B";
@@ -30,8 +31,8 @@ void loop() {
   Serial.printlnf("Found %d device(s) exposing service %s", count, (const char*)serviceUuid);
 
   String bleMAC[count];
-  char *bufferStr1 = (char *) malloc(300);
-  JSONBufferWriter writer1(bufferStr1, 299);
+  char *bufferStr1 = (char *) malloc(400);
+  JSONBufferWriter writer1(bufferStr1, 399);
   writer1.beginArray();
   writer1.value(1);
   for (uint8_t ii = 0; ii < count; ii++)
@@ -44,8 +45,13 @@ void loop() {
   // Get data from server
   Serial.println("request data from server");
   String inData = readServer(bufferStr1);
-  Serial.print("received: ");
   Serial.println(inData);
+
+  int a = inData.indexOf("{");
+  int b = inData.indexOf("}") + 1;
+  String sub = inData.substring(a, b);
+  Serial.println("extracted:");
+  Serial.println(sub);
 
   // Parse received data
   JSONValue outerObj = JSONValue::parseCopy(inData);
@@ -83,10 +89,17 @@ void loop() {
 String readServer(char *bufferStr1)
 {
   // Send request to TCP server
-  serverClient.connect(server, port);
-  serverClient.print(bufferStr1);
-  Serial.print("sent: ");
-  Serial.println(bufferStr1);
+  serverClient.connect(hostname, port);
+  // serverClient.print(bufferStr1);
+  // Serial.print("sent: ");
+  // Serial.println(bufferStr1);
+  String httpReq = "GET /read HTTP/1.0";
+	String hostReq = "Host: ";
+	hostReq.concat(hostname);
+	serverClient.connect(hostname, port);
+	serverClient.println(httpReq);
+	serverClient.println(hostReq);
+	serverClient.println();
 
   // Read incoming data from Server
   String inData = "";
@@ -103,15 +116,15 @@ String readServer(char *bufferStr1)
 void reportDone(char *bufferStr1, int id)
 {
   // Construct data to be sent
-  char *bufferStr2 = (char *) malloc(400);
-  JSONBufferWriter writer2(bufferStr2, 399);
+  char *bufferStr2 = (char *) malloc(500);
+  JSONBufferWriter writer2(bufferStr2, 499);
   writer2.beginArray();
   writer2.value(2).value(id).value(bufferStr1);
   writer2.endArray();
   writer2.buffer()[std::min(writer2.bufferSize(), writer2.dataSize())] = 0;
 
   // Send request to TCP server
-  serverClient.connect(server, port);
+  serverClient.connect(hostname, port);
   serverClient.print(bufferStr2);
   Serial.print("report done to server: ");
   Serial.println(bufferStr2);
