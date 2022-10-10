@@ -9,8 +9,8 @@ BleScanResult scanResults[SCAN_RESULT_COUNT];
 BlePeerDevice peer;
 BleCharacteristic peerModeCharacteristic;
 
-String readServer(char *bufferStr1);
-void reportDone(char *bufferStr1, int id);
+String readServer(char *bufferStr);
+void reportDone(size_t scanCount, int id);
 
 // setup() runs once, when the device is first turned on.
 void setup() {
@@ -30,24 +30,25 @@ void loop() {
   Serial.printlnf("Found %d device(s) exposing service %s", count, (const char*)serviceUuid);
 
   String bleMAC[count];
-  char *bufferStr1 = (char *) malloc(300);
-  JSONBufferWriter writer1(bufferStr1, 299);
-  writer1.beginArray();
-  writer1.value(1);
+  char *bufferStr1 = (char *) malloc(400);
+  JSONBufferWriter writer(bufferStr1, 399);
+  writer.beginArray();
+  writer.value(1);
   for (uint8_t ii = 0; ii < count; ii++)
   {
-    writer1.value(scanResults[ii].address().toString());
+    writer.value(scanResults[ii].address().toString());
   }
-  writer1.endArray();
-  writer1.buffer()[std::min(writer1.bufferSize(), writer1.dataSize())] = 0;
+  writer.endArray();
+  writer.buffer()[std::min(writer.bufferSize(), writer.dataSize())] = 0;
 
   // Get data from server
   Serial.println("request data from server");
   String inData = readServer(bufferStr1);
+  free(bufferStr1);
   Serial.print("received: ");
   Serial.println(inData);
 
-  // Parse received data
+  // Parse & process received data
   JSONValue outerObj = JSONValue::parseCopy(inData);
   JSONObjectIterator iter(outerObj);
   while (iter.next())
@@ -65,7 +66,7 @@ void loop() {
       if (mode == 1)
       {
         peerModeCharacteristic.setValue(0xFF);
-        reportDone(bufferStr1, id);
+        reportDone(count, id);
       }
       else if (mode == 2)
       {
@@ -75,18 +76,17 @@ void loop() {
     }
   }
 
-  free(bufferStr1);
   delay(1s);
 }
 
 
-String readServer(char *bufferStr1)
+String readServer(char *bufferStr)
 {
   // Send request to TCP server
   serverClient.connect(server, port);
-  serverClient.print(bufferStr1);
+  serverClient.print(bufferStr);
   Serial.print("sent: ");
-  Serial.println(bufferStr1);
+  Serial.println(bufferStr);
 
   // Read incoming data from Server
   String inData = "";
@@ -100,15 +100,20 @@ String readServer(char *bufferStr1)
   return inData;
 }
 
-void reportDone(char *bufferStr1, int id)
+void reportDone(size_t scanCount, int id)
 {
   // Construct data to be sent
   char *bufferStr2 = (char *) malloc(400);
-  JSONBufferWriter writer2(bufferStr2, 399);
-  writer2.beginArray();
-  writer2.value(2).value(id).value(bufferStr1);
-  writer2.endArray();
-  writer2.buffer()[std::min(writer2.bufferSize(), writer2.dataSize())] = 0;
+  JSONBufferWriter writer(bufferStr2, 399);
+  writer.beginArray();
+  writer.value(2);
+  writer.value(id);
+  for (uint8_t ii = 0; ii < scanCount; ii++)
+  {
+    writer.value(scanResults[ii].address().toString());
+  }
+  writer.endArray();
+  writer.buffer()[std::min(writer.bufferSize(), writer.dataSize())] = 0;
 
   // Send request to TCP server
   serverClient.connect(server, port);
