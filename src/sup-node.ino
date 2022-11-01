@@ -60,23 +60,28 @@ void loop() {
 
     // Connect to specified BLE scan result
     peer = BLE.connect(scanResults[id].address());
+    waitFor(peer.connected, 20000);
     if (peer.connected())
     {
       peer.getCharacteristicByUUID(peerModeCharacteristic, sensorMode);
       if (mode == 1)
       {
-        peerModeCharacteristic.setValue(0xFF);
+        uint8_t value = 0xff;
+        peerModeCharacteristic.setValue(value);
         reportDone(count, id);
       }
       else if (mode == 2)
       {
-        peerModeCharacteristic.setValue(0x00);
+        uint8_t value = 0x00;
+        peerModeCharacteristic.setValue(value);
+        reportDone(count, id);
       }
+      delay(100);
       peer.disconnect();
     }
   }
 
-  delay(1s);
+  delay(100);
 }
 
 
