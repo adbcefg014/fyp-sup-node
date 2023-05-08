@@ -58,7 +58,7 @@ void loop() {
     int id = name.toInt();
     int mode = value.toInt();
 
-    // Connect to specified BLE scan result
+    // Connect to specified BLE scan result where a match is found by server
     peer = BLE.connect(scanResults[id].address());
     waitFor(peer.connected, 20000);
     if (peer.connected())
@@ -66,12 +66,14 @@ void loop() {
       peer.getCharacteristicByUUID(peerModeCharacteristic, sensorMode);
       if (mode == 1)
       {
+        // Measurement mode 1 (Shut down sensors after)
         uint8_t value = 0xff;
         peerModeCharacteristic.setValue(value);
         reportDone(count, id);
       }
       else if (mode == 2)
       {
+        // Measurement mode 2 (No shut down sensors after)
         uint8_t value = 0x00;
         peerModeCharacteristic.setValue(value);
         reportDone(count, id);
@@ -107,6 +109,9 @@ String readServer(char *bufferStr)
 
 void reportDone(size_t scanCount, int id)
 {
+  // Data format as follows:
+  // [commandType(2 for done), arrayIndexDone, scannedArray]
+
   // Construct data to be sent
   char *bufferStr2 = (char *) malloc(400);
   JSONBufferWriter writer(bufferStr2, 399);
